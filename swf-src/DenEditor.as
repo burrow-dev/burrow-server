@@ -19,8 +19,11 @@ package gui
    import flash.events.Event;
    import flash.events.MouseEvent;
    import flash.events.TimerEvent;
+   import flash.filters.GlowFilter;
    import flash.geom.Point;
+   import flash.geom.Rectangle;
    import flash.text.TextField;
+   import flash.text.TextFieldAutoSize;
    import flash.text.TextFormat;
    import flash.utils.Timer;
    import gui.itemWindows.ItemWindowOriginal;
@@ -76,6 +79,10 @@ package gui
       private const OFFSET_BETWEEN_TAB_UP_BTNS:int = 43;
       
       private var _denEditor:MovieClip;
+
+      private var _lockAllBtn:Sprite;
+
+      private var _unlockAllBtn:Sprite;
       
       private var _playerAvatar:Avatar;
       
@@ -142,8 +149,6 @@ package gui
       private var _privacyId:int;
       
       private var _itemSetEvent:DenItemHolderEvent;
-
-      private var _layerControls:Sprite;
       
       public function DenEditor()
       {
@@ -162,8 +167,9 @@ package gui
          _roomMgr = RoomManagerWorld.instance;
          _denItemHolder = _roomMgr.denItemHolder;
          _guiLayer.addChild(_denEditor);
-         createLayerControls();
+         createBulkLockButtons();
          initAssetVisibility();
+         placeBulkLockButtons();
          setupPlayerItems();
          DenXtCommManager.denEditorDIResponseCallback = diResponseCallback;
          _denItemHolder.addEventListener("OnItemRemoved",onDenItemRemoved,false,0,true);
@@ -176,7 +182,6 @@ package gui
          _denItemHolder.removeEventListener("OnItemRemoved",onDenItemRemoved);
          _denItemHolder.removeEventListener("OnSaveState",onDenSaveState);
          removeListeners();
-         destroyLayerControls();
          _guiLayer.removeChild(_denEditor);
          if(_denLockPopup)
          {
@@ -421,6 +426,7 @@ package gui
       {
          _denEditor.bottomHud.visible = param1;
          _mainHud.visible = param1;
+         syncBulkLockButtons();
       }
       
       private function initAssetVisibility() : void
@@ -787,6 +793,7 @@ package gui
             }
             _roomMgr.setRoomMode(0);
          }
+         syncBulkLockButtons();
       }
       
       public function toggleEditorHud(param1:Boolean) : void
@@ -798,6 +805,7 @@ package gui
          {
             GuiManager.closeAnyHudPopups();
          }
+         syncBulkLockButtons();
       }
       
       private function setupTabs(param1:MovieClip, param2:Boolean) : void
@@ -1201,76 +1209,6 @@ package gui
          param1.categoryId = _loc2_;
          var _loc3_:DenStateItem = new DenStateItem(param1.defId,param1.invIdx,param1.defId << 16 | _loc2_,0,0,param1.version,param1.version2,param1.version3,0,_loc2_,param1.refId,param1.sortId,param1.minigameDefId,param1.layerId,param1.enviroType,param1.strmName,0,"",param1.specialType,param1.listId,param1.uniqueImageId,param1.uniqueImageCreator,param1.uniqueImageCreatorDbId,param1.uniqueImageCreatorUUID,false,null,0,0,param1.petItem,param1.mannequinData,param1.ecoConsumerStateId);
          _roomMgr.spawnNewDenItem(_loc3_);
-      }
-
-      // Small controls added at runtime so every den item can be stacked
-      // deliberately, instead of relying solely on where its feet land.
-      private function createLayerControls() : void
-      {
-         _layerControls = new Sprite();
-         _layerControls.x = _denEditor.width - 258;
-         _layerControls.y = 12;
-         _layerControls.addChild(makeLayerLabel("Selected item layer",0,0,230,22,13,16774041));
-         addLayerButton("Send behind",0,onSendBehind);
-         addLayerButton("Bring on top",116,onBringOnTop);
-         addLayerButton("Use natural depth",0,onResetLayer,62,230,30);
-         _denEditor.addChild(_layerControls);
-      }
-
-      private function addLayerButton(param1:String, param2:Number, param3:Function, param4:Number = 26, param5:Number = 110, param6:Number = 30) : void
-      {
-         var _loc6_:Sprite = new Sprite();
-         _loc6_.x = param2;
-         _loc6_.y = param4;
-         _loc6_.buttonMode = true;
-         _loc6_.mouseChildren = false;
-         _loc6_.graphics.beginFill(5986842,0.96);
-         _loc6_.graphics.drawRoundRect(0,0,param5,param6,8,8);
-         _loc6_.graphics.endFill();
-         _loc6_.addChild(makeLayerLabel(param1,0,5,param5,param6 - 5,12,16777215));
-         _loc6_.addEventListener("mouseDown",param3,false,0,true);
-         _layerControls.addChild(_loc6_);
-      }
-
-      private function makeLayerLabel(param1:String, param2:Number, param3:Number, param4:Number, param5:Number, param6:int, param7:uint) : TextField
-      {
-         var _loc8_:TextField = new TextField();
-         _loc8_.x = param2;
-         _loc8_.y = param3;
-         _loc8_.width = param4;
-         _loc8_.height = param5;
-         _loc8_.selectable = false;
-         _loc8_.mouseEnabled = false;
-         _loc8_.defaultTextFormat = new TextFormat("Arial",param6,param7,true,null,null,null,null,"center");
-         _loc8_.text = param1;
-         return _loc8_;
-      }
-
-      private function onSendBehind(param1:MouseEvent) : void
-      {
-         param1.stopImmediatePropagation();
-         _denItemHolder.sendSelectedBehind();
-      }
-
-      private function onBringOnTop(param1:MouseEvent) : void
-      {
-         param1.stopImmediatePropagation();
-         _denItemHolder.bringSelectedToFront();
-      }
-
-      private function onResetLayer(param1:MouseEvent) : void
-      {
-         param1.stopImmediatePropagation();
-         _denItemHolder.resetSelectedStacking();
-      }
-
-      private function destroyLayerControls() : void
-      {
-         if(_layerControls && _layerControls.parent)
-         {
-            _layerControls.parent.removeChild(_layerControls);
-         }
-         _layerControls = null;
       }
       
       private function onClose(param1:MouseEvent) : void
@@ -2055,6 +1993,140 @@ package gui
          _denEditor.searchBar.removeEventListener("mouseDown",onSearchBarDown);
          _denEditor.searchBar.removeEventListener("mouseOver",onSearchBarOver);
          _denEditor.searchBar.removeEventListener("mouseOut",onSearchBarOut);
+         if(_lockAllBtn)
+         {
+            _lockAllBtn.removeEventListener("mouseDown",onLockAll);
+            _lockAllBtn.removeEventListener("rollOver",onBulkLockOver);
+            _lockAllBtn.removeEventListener("rollOut",onBulkLockOut);
+            _unlockAllBtn.removeEventListener("mouseDown",onUnlockAll);
+            _unlockAllBtn.removeEventListener("rollOver",onBulkLockOver);
+            _unlockAllBtn.removeEventListener("rollOut",onBulkLockOut);
+         }
+      }
+
+      private function createBulkLockButtons() : void
+      {
+         _lockAllBtn = makeBulkLockButton("Lock all",true);
+         _unlockAllBtn = makeBulkLockButton("Unlock all",false);
+         _lockAllBtn.addEventListener("mouseDown",onLockAll,false,0,true);
+         _lockAllBtn.addEventListener("rollOver",onBulkLockOver,false,0,true);
+         _lockAllBtn.addEventListener("rollOut",onBulkLockOut,false,0,true);
+         _unlockAllBtn.addEventListener("mouseDown",onUnlockAll,false,0,true);
+         _unlockAllBtn.addEventListener("rollOver",onBulkLockOver,false,0,true);
+         _unlockAllBtn.addEventListener("rollOut",onBulkLockOut,false,0,true);
+         _denEditor.addChild(_lockAllBtn);
+         _denEditor.addChild(_unlockAllBtn);
+         syncBulkLockButtons();
+      }
+
+      private function makeBulkLockButton(param1:String, param2:Boolean) : Sprite
+      {
+         var _loc2_:Sprite = new Sprite();
+         var _loc3_:TextField = new TextField();
+         var _loc4_:MovieClip = GETDEFINITIONBYNAME(param2 ? "HUDAssets_fla.denLock_mouseCont_389" : "HUDAssets_fla.denUnlock_mouseCont_393");
+         var _loc5_:Rectangle = null;
+         var _loc6_:Number = 0.36;
+         _loc4_.gotoAndStop(1);
+         _loc4_.mouseEnabled = false;
+         _loc4_.mouseChildren = false;
+         _loc4_.name = "icon";
+         _loc4_.scaleX = _loc6_;
+         _loc4_.scaleY = _loc6_;
+         _loc5_ = _loc4_.getBounds(_loc4_);
+         _loc4_.x = -_loc5_.x * _loc6_;
+         _loc3_.embedFonts = AJClient.hasGameFont();
+         _loc3_.selectable = false;
+         _loc3_.mouseEnabled = false;
+         _loc3_.autoSize = TextFieldAutoSize.LEFT;
+         _loc3_.defaultTextFormat = new TextFormat("CCDigitalDelivery",16,16777215,true);
+         _loc3_.filters = [new GlowFilter(0,1,3,3,8,1)];
+         _loc3_.text = param1;
+         _loc4_.y = (_loc3_.height - _loc5_.height * _loc6_) * 0.5 - _loc5_.y * _loc6_;
+         _loc3_.x = _loc5_.width * _loc6_ + 4;
+         _loc2_.addChild(_loc4_);
+         _loc2_.addChild(_loc3_);
+         _loc2_.graphics.beginFill(0,0.01);
+         _loc2_.graphics.drawRect(0,0,_loc3_.x + _loc3_.width,Math.max(_loc3_.height,_loc5_.height * _loc6_));
+         _loc2_.graphics.endFill();
+         _loc2_.buttonMode = true;
+         _loc2_.mouseChildren = false;
+         return _loc2_;
+      }
+
+      private function placeBulkLockButtons() : void
+      {
+         var _loc1_:Rectangle = _denEditor.closeBtn.getBounds(_denEditor);
+         var _loc2_:Number = _loc1_.x - 8;
+         if(_loc2_ < 200 || _loc2_ > 890)
+         {
+            _loc2_ = 860;
+         }
+         _unlockAllBtn.y = _loc1_.y + (_loc1_.height - _unlockAllBtn.height) * 0.5;
+         if(_unlockAllBtn.y < 4 || _unlockAllBtn.y > 80)
+         {
+            _unlockAllBtn.y = 8;
+         }
+         _lockAllBtn.y = _unlockAllBtn.y;
+         _unlockAllBtn.x = _loc2_ - _unlockAllBtn.width;
+         _lockAllBtn.x = _unlockAllBtn.x - 6 - _lockAllBtn.width;
+      }
+
+      private function syncBulkLockButtons() : void
+      {
+         var _loc1_:Boolean = _denEditor != null && _denEditor.bottomHud.visible;
+         if(_lockAllBtn)
+         {
+            _lockAllBtn.visible = _loc1_;
+            _unlockAllBtn.visible = _loc1_;
+         }
+      }
+
+      private function bulkLockIcon(param1:MouseEvent) : MovieClip
+      {
+         return MovieClip(Sprite(param1.currentTarget).getChildByName("icon"));
+      }
+
+      private function onBulkLockOver(param1:MouseEvent) : void
+      {
+         var _loc2_:MovieClip = bulkLockIcon(param1);
+         _loc2_.removeEventListener("enterFrame",onBulkLockBack);
+         _loc2_.gotoAndPlay(1);
+      }
+
+      private function onBulkLockOut(param1:MouseEvent) : void
+      {
+         var _loc2_:MovieClip = bulkLockIcon(param1);
+         if(_loc2_.currentFrame > 1)
+         {
+            _loc2_.addEventListener("enterFrame",onBulkLockBack,false,0,true);
+         }
+         else
+         {
+            _loc2_.stop();
+         }
+      }
+
+      private function onBulkLockBack(param1:Event) : void
+      {
+         var _loc2_:MovieClip = MovieClip(param1.currentTarget);
+         if(_loc2_.currentFrame <= 1)
+         {
+            _loc2_.removeEventListener("enterFrame",onBulkLockBack);
+            return;
+         }
+         _loc2_.prevFrame();
+      }
+
+      private function onLockAll(param1:MouseEvent) : void
+      {
+         param1.stopPropagation();
+         _denItemHolder.setAllItemsLocked(true);
+      }
+
+      private function onUnlockAll(param1:MouseEvent) : void
+      {
+         param1.stopPropagation();
+         _denItemHolder.setAllItemsLocked(false);
       }
    }
 }
