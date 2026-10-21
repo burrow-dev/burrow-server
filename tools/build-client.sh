@@ -18,17 +18,11 @@
 # of its methods are replaced as P-code: the tutorial and "what's new" video
 # lists return at once when empty, as this server sends them (they threw).
 # 3830 and 3832 are those method bodies' places in the untouched client.
-#
-# avatar.AvatarManager's checkIfAnimatingOnTopOf is replaced as P-code too
-# (the class's loops decompile wrong): it pushed a player off another who was
-# sitting, sleeping or the like within 100 pixels, so players can sit and
-# sleep side by side now. 2394 is that method body's place.
 set -e
 cd "$(dirname "$(readlink -f "$0")")/.."
 out=${1:-swf/ajclient.swf}
 set -- \
   AJClient AJClient.as \
-  com.sbi.client.KeepAlive KeepAlive.as \
   GlobalErrorCatch GlobalErrorCatch.as \
   XtReplyDemuxer XtReplyDemuxer.as \
   loader.MediaHelper MediaHelper.as \
@@ -60,15 +54,12 @@ set -- \
   gui.RecycleItems RecycleItems.as \
   gui.AvatarEditor AvatarEditor.as \
   gui.PetInventory PetInventory.as \
-  pet.WorldPet WorldPet.as \
   gui.DenEditor DenEditor.as \
   gui.TradeManager TradeManager.as \
-  avatar.AvatarView AvatarView.as \
   avatar.AvatarWorldView AvatarWorldView.as \
   room.RoomManagerWorld RoomManagerWorld.as \
   gskinner.motion.GTween GTween.as \
   playerWall.PostMessage PostMessage.as \
-  gui.itemWindows.ItemWindowPost ItemWindowPost.as \
   shop.BundleShop BundleShop.as \
   gui.GenericListGuiManager GenericListGuiManager.as \
   gui.DenSwitcher DenSwitcher.as \
@@ -79,26 +70,17 @@ set -- \
   Party.PartyPopup PartyPopup.as \
   gui.ECardInbox ECardInbox.as \
   game.SoundManager SoundManager.as \
-  com.sbi.corelib.audio.SBMusic SBMusic.as \
-  com.sbi.corelib.audio.SBSound SBSound.as \
   com.sbi.graphics.LayerAnim LayerAnim.as \
   com.sbi.graphics.LayerBitmap LayerBitmap.as \
+  com.sbi.graphics.SortLayer SortLayer.as \
+  room.DenItemHolder DenItemHolder.as \
   ecard.ECard ECard.as \
   game.ArtStudioKit ArtStudioKit.as \
   game.artStudioPainting.ArtStudioPainting ArtStudioPainting.as \
-  game.artStudioGridDrawing.ArtStudioGridDrawing ArtStudioGridDrawing.as \
-  item.ItemXtCommManager ItemXtCommManager.as \
-  den.DenXtCommManager DenXtCommManager.as \
-  gui.ActionManager ActionManager.as \
-  gui.SitForwardAction SitForwardAction.as \
-  avatar.AvatarUtility AvatarUtility.as \
-  item.Item Item.as \
-  loader.DenItemHelper DenItemHelper.as \
-  room.DenItemHolder ../tools/decompiled/room/DenItemHolder.as
+  game.artStudioGridDrawing.ArtStudioGridDrawing ArtStudioGridDrawing.as
 # not in the game: added before the replace (game.ArtStudioKit is Strawberry
-# Jam's, shared by its two art studio painters; gui.SitForwardAction is the
-# action of sitting facing forward)
-NEW_CLASSES="game.ArtStudioKit gui.SitForwardAction"
+# Jam's, shared by its two art studio painters)
+NEW_CLASSES="game.ArtStudioKit"
 args=""
 while [ $# -gt 0 ]; do
   args="$args $1 swf-src/$2"
@@ -113,6 +95,5 @@ java -cp "tools/ffdec/lib/*" tools/AddClass.java swf/ajclient.before-finder.swf 
 java -jar tools/ffdec/ffdec-cli.jar -replace "$base" "$out" \
   gui.EmoticonUtility swf-src/EmoticonUtility.cinit.pcode 4839 \
   gui.BulletinBoard swf-src/BulletinBoard.onTutorialGLReceived.pcode 3830 \
-  gui.BulletinBoard swf-src/BulletinBoard.onWhatsNewVideosLoaded.pcode 3832 \
-  avatar.AvatarManager swf-src/AvatarManager.checkIfAnimatingOnTopOf.pcode 2394 $args | grep -v "^Replac\|EXPERIMENTAL" || true
+  gui.BulletinBoard swf-src/BulletinBoard.onWhatsNewVideosLoaded.pcode 3832 $args | grep -v "^Replac\|EXPERIMENTAL" || true
 ls -l "$out"
